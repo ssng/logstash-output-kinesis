@@ -5,6 +5,8 @@ require "logstash/outputs/base"
 require "logstash/namespace"
 require "securerandom"
 require "logstash-output-kinesis_jars"
+# SSH
+require "json"
 
 # Sends log events to a Kinesis stream. This output plugin uses the official Amazon KPL.
 # Most of the configuration options in this plugin are simply passed on to
@@ -105,6 +107,8 @@ class LogStash::Outputs::Kinesis < LogStash::Outputs::Base
     end
 
     begin
+      # SSH: log beginning of encode
+      @logger.debug("SSH: Encoding event -- " + event.to_json)
       @codec.encode(event)
     rescue => e
       @logger.warn("Error encoding event", :exception => e, :event => event)
@@ -194,6 +198,8 @@ class LogStash::Outputs::Kinesis < LogStash::Outputs::Base
 
   def send_record(event, payload)
     begin
+      # SSH: log beginning of send
+      @logger.debug("SSH: Sending event -- " + event.to_json)
       event_blob = ByteBuffer::wrap(payload.to_java_bytes)
       @producer.addUserRecord(event.sprintf(@stream_name), event.get("[@metadata][partition_key]"), event_blob)
     rescue => e
@@ -201,6 +207,8 @@ class LogStash::Outputs::Kinesis < LogStash::Outputs::Base
     end
 
     num = @producer.getOutstandingRecordsCount()
+    # SSH: log beginning of send
+    @logger.debug("SSH: Outstanding records count -- " + num.to_s)
     if num > @max_pending_records
       @logger.warn("Kinesis is too busy - blocking until things have cleared up")
       @producer.flushSync()
